@@ -91,6 +91,10 @@ export class NpcData extends foundry.abstract.TypeDataModel {
       valMod: new NumberField({ ...requiredInteger, initial: 0 }),
       manArm: new NumberField({ ...requiredInteger, initial: 0 }),
       manShd: new NumberField({ ...requiredInteger, initial: 0 }),
+      equippedHands: new SchemaField({
+        primary: new StringField({ required: true, initial: "" }),
+        secondary: new StringField({ required: true, initial: "" }),
+      }),
       manMaxHP: new NumberField({ ...requiredInteger, initial: 0 }),
       manKnockdown: new NumberField({ ...requiredInteger, initial: 0 }),
       manMjrWnd: new NumberField({ ...requiredInteger, initial: 0 }),

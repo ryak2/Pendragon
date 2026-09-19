@@ -504,6 +504,7 @@
     },
     "heir": "Heir",
     "heirStatus": "Is the character the family heir?",
+    "held": "Held",
     "heraldry": "Heraldry",
     "heroicEvent": "Heroic Event",
     "history": "Background",
@@ -1128,6 +1129,16 @@
       "zigzagFumble": "No modifier to the opponent's Skill; the character stumbles and loses all Movement Rate this round."
     },
     "walk": "Walk",
+    "wield": {
+      "label": "Wield",
+      "carried": "Carried",
+      "dropped": "Dropped",
+      "dropHint": "Drop what is in this hand",
+      "drawHint": "Wielding takes one from the stack",
+      "primaryHand": "Primary Hand",
+      "twoHanded": "Two-Handed"
+    },
+    "secondaryHand": "Secondary Hand",
     "warn": {
       "currentWeaponCannotCharge": "You cannot use your current weapon in a mounted charge.",
       "mountedOnlyAction": "You must be mounted to use this action.",
@@ -1136,7 +1147,10 @@
       "unmountedOnlyAction": "You must be on foot to use this action.",
       "unmountedOnlyWeapon": "You cannot use your current weapon while mounted.",
       "mustBeOnFoot": "You must be standing on foot to use this action.",
-      "needSpear": "You must have a spear as your current weapon to use this action."
+      "needSpear": "You must have a spear as your current weapon to use this action.",
+      "twoHandedOccupiesBoth": "A two-handed weapon occupies both hands; unwield it first.",
+      "shieldWithCouchedLance": "A shield can only accompany a couched lance while charging; it stays equipped, but the lance still occupies both hands.",
+      "displacedFromHand": "{item} is dropped."
     },
     "warTrained": "War-Trained",
     "weak": "Weak",

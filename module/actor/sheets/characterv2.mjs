@@ -46,8 +46,9 @@ export class PendragonCharacterSheetv2 extends PendragonActorSheet {
       addItem: this.#onCreateItem,
       editItem: this.#onEditItem,
       toggleEquip: this._onToggleEquip,
+      dropHand: this._onDropHand,
       switchHorse: this._onSwitchHorse,
-      switchWeapon: this._onSwitchWeapon,
+      goToEquipment: this._onGoToEquipment,
       switchSheet: this._onSwitchSheet,
       // automated combat actions
       combatAction: this._declareCombatAction,
@@ -236,6 +237,9 @@ export class PendragonCharacterSheetv2 extends PendragonActorSheet {
         armours.push(i);
       } else if (i.type === "weapon") {
         i.mountedLabel = game.i18n.localize("PEN." + i.system.mounted);
+        i.wieldState = this.actor.getWieldState(i);
+        i.wieldType = PENSelectLists.getWieldTypes(i.system);
+        i.wieldLabel = this.actor.getWieldLabel(i);
         weapons.push(i);
       } else if (i.type === "family") {
         i.system.typeName = game.i18n.localize("PEN." + i.system.relation);
@@ -304,6 +308,9 @@ export class PendragonCharacterSheetv2 extends PendragonActorSheet {
     context.ideals = ideals;
     context.household = household;
     context.followers = followers;
+    // equipped items by hand
+    context.primaryHandItem = this.actor.getPrimaryHandItem();
+    context.secondaryHandItem = this.actor.getSecondaryHandItem();
     context.house = await this.prepareHousehold(families, followers, squires);
   }
 
@@ -505,6 +512,18 @@ export class PendragonCharacterSheetv2 extends PendragonActorSheet {
     return context;
   }
 
+  /* -------------------------------------------- */
+  // Activate event listeners using the prepared sheet HTML
+  _onRender(context, _options) {
+    super._onRender(context, _options);
+    //a select needs a change listener (actions fire on click, before the value changes)
+    this.element.querySelectorAll(".wield-select").forEach((n) =>
+      n.addEventListener("change", (event) => {
+        PendragonCharacterSheetv2._onWieldChange.call(this, event, event.currentTarget);
+      }),
+    );
+  }
+
   async _prepareCombatTab(context) {
     context.tab = context.tabs.combat;
     const horse = this.actor.currentHorse();
@@ -526,6 +545,9 @@ export class PendragonCharacterSheetv2 extends PendragonActorSheet {
     } else {
       context.currentWeapon = this.#unarmed();
     }
+    // equipped items by hand
+    context.primaryHandItem = this.actor.getPrimaryHandItem();
+    context.secondaryHandItem = this.actor.getSecondaryHandItem();
     // use higher of shield or parry
     // TODO: double-check we are calculating correctly
     context.shield = Math.max(this.actor.system.shield, weapon?.system.parry ?? 0);
@@ -545,7 +567,12 @@ export class PendragonCharacterSheetv2 extends PendragonActorSheet {
   static async _onToggleEquip(event, target) {
     const { itemid } = target.closest("[data-itemid]")?.dataset ?? {};
     const item = this.actor.items.get(itemid);
-    await item.update({ "system.equipped": !item.system.equipped });
+    const equipped = !item.system.equipped;
+    await item.update({ "system.equipped": equipped });
+    //shields occupy the secondary hand when equipped
+    if (item.type === "armour" && !item.system.type) {
+      await this.actor.setShieldHand(item, equipped);
+    }
   }
 
   static async _onToggleXP(event, target) {
@@ -696,30 +723,28 @@ export class PendragonCharacterSheetv2 extends PendragonActorSheet {
     if (!result || result === "switch") return;
     await this.actor.setFlag("Pendragon", "currentHorse", result);
   }
-  static async _onSwitchWeapon(event, target) {
-    const weapons = this.actor.items.filter((itm) => itm.type === "weapon");
-    weapons.sort((a, b) => a.system.melee - b.system.melee || a.name.localeCompare(b.name));
-    const currentWeapon = this.actor.currentWeapon();
-    const content = weapons
-      .map(
-        (w) =>
-          `<label><input type='radio' name='weapon' value='${w.id}' ${w.id == currentWeapon?.id ? "checked" : ""}>${w.name}</label>`,
-      )
-      .join("");
-    const result = await api.DialogV2.wait({
-      window: { title: "Select Weapon" },
-      content: content,
-      buttons: [
-        {
-          label: "Switch",
-          action: "switch",
-          callback: (_, button) => button.form.elements.weapon.value,
-        },
-      ],
-    });
-    // no result or missing weapon id
-    if (!result || result === "switch") return;
-    await this.actor.setFlag("Pendragon", "currentWeapon", result);
+  //wield/carry/drop a weapon from the character sheet's weapon list
+  static async _onWieldChange(event, target) {
+    const { itemid } = target.closest("[data-itemid]")?.dataset ?? {};
+    const weapon = this.actor.items.get(itemid);
+    if (weapon?.type !== "weapon") return;
+    await this.actor.setWield(weapon, target.value);
+  }
+  static async _onGoToEquipment(event, target) {
+    //ApplicationV2 tab API: changeTab(tab, group, options)
+    this.changeTab("equipment", "primary");
+  }
+  //drop whatever is in the given hand, freeing it (dropping a weapon is always allowed)
+  static async _onDropHand(event, target) {
+    const { hand } = target.closest("[data-hand]")?.dataset ?? {};
+    const item = this.actor.getItemInHand(hand);
+    if (!item) return;
+    if (item.type === "weapon") {
+      await this.actor.setWield(item, "dropped");
+    } else if (item.type === "armour") {
+      await this.actor.setShieldHand(item, false);
+      await item.update({ "system.equipped": false });
+    }
   }
   static async _declareCombatAction(event, target) {
     const { combatAction } = target.closest("[data-combat-action]")?.dataset ?? {};

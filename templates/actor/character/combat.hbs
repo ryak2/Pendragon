@@ -35,10 +35,33 @@
         <p>{{localize 'PEN.knockdown'}}: {{system.hp.knockdown}}</p>
         <p>{{localize 'PEN.mjrWnd'}}: {{system.hp.majorWnd}}</p>
         <p>{{localize 'PEN.unconscious'}}: {{system.hp.unconscious}}</p>
-        <p style="font-weight: bold;font-size:larger"><i class= "fa-solid fa-swords"></i> {{localize 'PEN.weapon'}}</p>
-        <p>{{currentWeapon.name}} {{currentWeapon.total}}</p>
-        <p>{{localize 'PEN.damage'}}: {{currentWeapon.damage}}</p>
-        <button type="button" data-action="switchWeapon">{{localize 'PEN.changeWeapon'}}</button>
+        <p style="font-weight: bold;font-size:larger"><i class= "fa-solid fa-swords"></i> {{localize 'PEN.held'}}</p>
+        {{#if system.equippedHands.primary}}
+          {{#if (eq system.equippedHands.primary system.equippedHands.secondary)}}
+            <p><i class="fa-solid fa-hand-fist"></i> {{localize 'PEN.wield.twoHanded'}}: {{primaryHandItem.name}} {{primaryHandItem.system.total}}
+            </p>
+            <p>{{localize 'PEN.damage'}}: {{primaryHandItem.system.damage}}</p>
+          {{else}}
+            {{#if primaryHandItem}}
+              <p><i class="fa-solid fa-sword"></i> {{localize 'PEN.wield.primaryHand'}}: {{primaryHandItem.name}} {{primaryHandItem.system.total}}
+              </p>
+              <p>{{localize 'PEN.damage'}}: {{primaryHandItem.system.damage}}</p>
+            {{/if}}
+            {{#if secondaryHandItem}}
+              <p><i class="fa-solid fa-shield"></i> {{localize 'PEN.secondaryHand'}}: {{secondaryHandItem.name}}{{#if (eq secondaryHandItem.type 'armour')}} ({{secondaryHandItem.system.ap}}){{/if}}
+              </p>
+            {{/if}}
+            {{#if secondaryHandItem}}
+              {{#unless (eq secondaryHandItem.type 'armour')}}
+                <p>{{localize 'PEN.damage'}}: {{secondaryHandItem.system.damage}}</p>
+              {{/unless}}
+            {{/if}}
+          {{/if}}
+        {{else}}
+          <p>{{currentWeapon.name}} {{currentWeapon.total}}</p>
+          <p>{{localize 'PEN.damage'}}: {{currentWeapon.damage}}</p>
+        {{/if}}
+        <button type="button" data-action="goToEquipment">{{localize 'PEN.changeWeapon'}}</button>
       </div>
       <div style="border-radius: 0.25rem;padding: 0.5rem;background-color: var(--pd-light-row);">
         <p>{{localize 'PEN.armourPoints'}}: {{system.armour}} + {{shield}} <i class="fa-solid fa-shield"></i></p>

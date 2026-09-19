@@ -179,6 +179,8 @@ export class PendragonActor extends Actor {
           damageFlatMod = Number(damageFlatMod) + Number(i.system.damageBonus) + Number(systemData.damageMod);
 
           damageDice = Math.min(Number(damageDice) + Number(i.system.damageMod), Number(i.system.damageMax));
+          //a two-handed grip adds +2D6 damage
+          damageDice = damageDice + this.getTwoHandedBonus(i);
           // make this mildly nicer
           damageFormula = `${damageDice}D6`;
           if (damageFlatMod > 0) {
@@ -656,9 +658,226 @@ export class PendragonActor extends Actor {
   currentWeapon() {
     const currentWeapon = this.getFlag("Pendragon", "currentWeapon");
     if (currentWeapon) {
-      return this.items.find((i) => i.id === currentWeapon);
+      const item = this.items.get(currentWeapon);
+      //only weapons can be the current weapon
+      return item?.type === "weapon" ? item : null;
     }
     return null;
+  }
+
+  //the item ID held in each hand is stored in system.equippedHands
+  getItemInHand(hand) {
+    const id = this.system.equippedHands?.[hand];
+    return id ? (this.items.get(id) ?? null) : null;
+  }
+  getPrimaryHandItem() {
+    return this.getItemInHand("primary");
+  }
+  getSecondaryHandItem() {
+    return this.getItemInHand("secondary");
+  }
+  //a two-handed weapon occupies both hands (same item ID in each)
+  isWieldingTwoHanded() {
+    const hands = this.system.equippedHands ?? {};
+    return Boolean(hands.primary && hands.primary === hands.secondary);
+  }
+  getTwoHandedWeapon() {
+    if (!this.isWieldingTwoHanded()) return null;
+    return this.items.get(this.system.equippedHands.primary) ?? null;
+  }
+  // armour item system.type is true for armor, false for shields
+  hasShieldEquipped() {
+    return this.items.some((itm) => itm.type === "armour" && itm.system.equipped && !itm.system.type);
+  }
+  //shields occupy the secondary hand; a lance wielded two-handed may still keep a shield equipped (couched charge only)
+  async setShieldHand(shield, equipped) {
+    if (!this.system.equippedHands) return;
+    const hands = {
+      primary: this.system.equippedHands.primary ?? "",
+      secondary: this.system.equippedHands.secondary ?? "",
+    };
+    if (!equipped) {
+      if (hands.secondary === shield.id) hands.secondary = "";
+      await this.update({ "system.equippedHands.secondary": hands.secondary });
+      await this.syncCurrentWeapon(hands);
+      return;
+    }
+    if (this.isWieldingTwoHanded()) {
+      const wielded = this.getTwoHandedWeapon();
+      if (wielded?.system?.skill === "charge") {
+        //the shield stays equipped but the couched lance keeps the secondary hand; only usable while charging
+        ui.notifications.warn(game.i18n.localize("PEN.warn.shieldWithCouchedLance"));
+        return;
+      }
+      ui.notifications.warn(game.i18n.localize("PEN.warn.twoHandedOccupiesBoth"));
+      //unequip again; there are no free hands
+      await shield.update({ "system.equipped": false });
+      return;
+    }
+    if (hands.secondary && hands.secondary !== shield.id) {
+      const displaced = this.items.get(hands.secondary);
+      ui.notifications.warn(game.i18n.format("PEN.warn.displacedFromHand", { item: displaced?.name ?? "" }));
+      //anything displaced from a hand is dropped
+      if (displaced?.type === "weapon") {
+        await displaced.update({ "system.wield": "dropped" });
+        await this.#mergeStacks("dropped");
+      }
+    }
+    hands.secondary = shield.id;
+    await this.update({ "system.equippedHands.secondary": hands.secondary });
+    await this.syncCurrentWeapon(hands);
+  }
+  getShieldArmourPoints() {
+    return this.system.shield ?? 0;
+  }
+  //the main weapon is the two-handed weapon if wielding one, else whatever weapon is in the primary hand
+  getMainWeapon() {
+    if (this.isWieldingTwoHanded()) return this.getTwoHandedWeapon();
+    const primary = this.getPrimaryHandItem();
+    return primary?.type === "weapon" ? primary : null;
+  }
+  canWeaponBeTwoHanded(weapon) {
+    return weapon?.system?.canBeTwoHanded ?? false;
+  }
+  //the wield state of a weapon: carried, dropped, primaryHand or twoHanded
+  //the hand slots are authoritative for anything in hand; the item's own wield field
+  //records whether it is otherwise carried (sheathed/at the side) or dropped
+  getWieldState(item) {
+    if (!item) return "";
+    const hands = this.system.equippedHands ?? {};
+    const inPrimary = hands.primary === item.id;
+    const inSecondary = hands.secondary === item.id;
+    if (inPrimary && inSecondary) return "twoHanded";
+    if (inPrimary) return "primaryHand";
+    if (inSecondary) return "secondaryHand";
+    if (item.type !== "weapon") return "";
+    return item.system.wield === "dropped" ? "dropped" : "carried";
+  }
+  //display label for how an item is currently wielded; carried is the resting state
+  //(sheathed or at the side) so it needs no label
+  getWieldLabel(item) {
+    const state = this.getWieldState(item);
+    if (!state || state === "carried") return "";
+    if (state === "secondaryHand") return game.i18n.localize("PEN.secondaryHand");
+    const key = `PEN.wield.${state}`;
+    const label = game.i18n.localize(key);
+    return label === key ? "" : label;
+  }
+  //a two-handed grip adds +2D6 damage; returns the number of extra damage dice
+  getTwoHandedBonus(weapon = this.getTwoHandedWeapon()) {
+    if (!weapon) return 0;
+    const hands = this.system.equippedHands ?? {};
+    if (hands.primary !== weapon.id || hands.secondary !== weapon.id) return 0;
+    return weapon.system?.canBeTwoHanded ? 2 : 0;
+  }
+
+  //anything displaced from a hand leaves it properly: a weapon is dropped (on the ground),
+  //a shield is no longer equipped. Either could otherwise stay "active" with no hand holding it
+  async displaceItem(item) {
+    if (!item) return;
+    ui.notifications.warn(game.i18n.format("PEN.warn.displacedFromHand", { item: item.name }));
+    if (item.type === "weapon") {
+      await item.update({ "system.wield": "dropped" });
+      await this.#mergeStacks("dropped");
+    } else if (item.type === "armour") {
+      await item.update({ "system.equipped": false });
+    }
+  }
+
+  //set the wield state of a weapon: carried, dropped, primaryHand or twoHanded
+  //anything displaced from a hand is dropped, since dropping a weapon is always allowed
+  //(picking it up again takes a combat action)
+  async setWield(weapon, wield) {
+    if (!this.system.equippedHands || weapon?.type !== "weapon") return false;
+    //a stack can't go in a hand; a hand state draws a single unit out of it instead
+    const inHand = wield === "primaryHand" || wield === "twoHanded";
+    if (inHand && (weapon.system.quantity ?? 1) > 1) {
+      const unit = await this.#drawUnit(weapon);
+      if (!unit) return false;
+      await this.#applyWield(unit, wield);
+      await weapon.update({ "system.quantity": weapon.system.quantity - 1 });
+      return true;
+    }
+    return this.#applyWield(weapon, wield);
+  }
+
+  //a drawn unit is a copy of the stack with quantity 1
+  async #drawUnit(weapon) {
+    const unitData = weapon.toObject();
+    delete unitData._id;
+    unitData.system.quantity = 1;
+    const [unit] = await this.createEmbeddedDocuments("Item", [unitData]);
+    return unit ?? null;
+  }
+
+  //the hand-assignment core; weapons passed here always have quantity 1
+  async #applyWield(weapon, wield) {
+    const hands = {
+      primary: this.system.equippedHands.primary ?? "",
+      secondary: this.system.equippedHands.secondary ?? "",
+    };
+    //clear this weapon from any hand it already occupies
+    if (hands.primary === weapon.id) hands.primary = "";
+    if (hands.secondary === weapon.id) hands.secondary = "";
+    //take the hands the new state needs, displacing whatever was there
+    const displaced = [];
+    const displace = (id) => {
+      if (id && id !== weapon.id && !displaced.includes(id)) displaced.push(id);
+    };
+    if (wield === "primaryHand") {
+      displace(hands.primary);
+      //a two-handed occupant holds both hands, so taking the primary must free the secondary too
+      //(a shield in the secondary hand is left alone)
+      if (hands.primary && hands.primary === hands.secondary) hands.secondary = "";
+      hands.primary = weapon.id;
+    } else if (wield === "twoHanded") {
+      displace(hands.primary);
+      displace(hands.secondary);
+      hands.primary = weapon.id;
+      hands.secondary = weapon.id;
+    }
+    await weapon.update({ "system.wield": wield });
+    await this.update({
+      "system.equippedHands.primary": hands.primary,
+      "system.equippedHands.secondary": hands.secondary,
+    });
+    for (const id of displaced) await this.displaceItem(this.items.get(id));
+    //keep the currentWeapon flag in sync with what is actually in hand
+    await this.syncCurrentWeapon(hands);
+    if (wield === "carried" || wield === "dropped") await this.#mergeStacks(wield);
+    return true;
+  }
+
+  //merge identical weapons that share the same no-hand state (carried or dropped)
+  //back into a single stack; hand states never merge
+  async #mergeStacks(state) {
+    const groups = {};
+    for (const item of this.items) {
+      if (item.type !== "weapon" || this.getWieldState(item) !== state) continue;
+      //identity = name + everything except quantity and wield state
+      const { quantity, wield, ...rest } = item.system;
+      const key = JSON.stringify([item.name, rest]);
+      (groups[key] ??= []).push(item);
+    }
+    for (const group of Object.values(groups)) {
+      if (group.length < 2) continue;
+      const [keep, ...absorbed] = group;
+      const total = absorbed.reduce((sum, i) => sum + (i.system.quantity ?? 1), keep.system.quantity ?? 1);
+      await keep.update({ "system.quantity": total });
+      await this.deleteEmbeddedDocuments(
+        "Item",
+        absorbed.map((i) => i.id),
+      );
+    }
+  }
+
+  //the currentWeapon flag mirrors the weapon actually in hand (never a shield)
+  async syncCurrentWeapon(hands = this.system.equippedHands ?? {}) {
+    const main = this.items.get(hands.primary) ?? this.items.get(hands.secondary);
+    const mainId = main?.type === "weapon" ? main.id : null;
+    if (mainId !== (this.currentWeapon()?.id ?? null)) {
+      await this.setFlag("Pendragon", "currentWeapon", mainId);
+    }
   }
 
   isMounted() {

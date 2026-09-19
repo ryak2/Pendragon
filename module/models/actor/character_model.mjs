@@ -127,6 +127,10 @@ export class CharacterData extends foundry.abstract.TypeDataModel {
         libra: new NumberField({ ...requiredInteger, initial: 0 }),
         denarii: new NumberField({ ...requiredInteger, initial: 0 }),
       }),
+      equippedHands: new SchemaField({
+        primary: new StringField({ required: true, initial: "" }),
+        secondary: new StringField({ required: true, initial: "" }),
+      }),
       joust: new SchemaField({
         wins: new NumberField({ ...requiredInteger, initial: 0 }),
         losses: new NumberField({ ...requiredInteger, initial: 0 }),

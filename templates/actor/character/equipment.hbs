@@ -1,4 +1,38 @@
 <section class="tab equipment {{tab.cssClass}}" data-group="primary" data-tab="equipment">
+    <h2>{{localize 'PEN.wield.label'}}</h2>
+    <table>
+        <tbody>
+          <tr>
+              <th>{{localize 'PEN.wield.primaryHand'}}</th>
+              <th>{{localize 'PEN.secondaryHand'}}</th>
+              <th>{{localize 'PEN.ap'}}</th>
+              <th></th>
+          </tr>
+          <tr>
+            <td data-hand="primary">
+              {{#if (eq system.equippedHands.primary system.equippedHands.secondary)}}
+                {{#if primaryHandItem}}{{primaryHandItem.name}} <em>({{localize 'PEN.wield.twoHanded'}})</em>{{/if}}
+              {{else}}
+                {{#if primaryHandItem}}{{primaryHandItem.name}}{{/if}}
+              {{/if}}
+              {{#if primaryHandItem}}
+                &nbsp <a class="item-control large-icon" data-action="dropHand" data-tooltip="{{localize 'PEN.wield.dropHint'}}"><i class="fas fa-arrow-down-from-line"></i></a>
+              {{/if}}
+            </td>
+            <td data-hand="secondary">
+              {{#unless (eq system.equippedHands.primary system.equippedHands.secondary)}}
+                {{#if secondaryHandItem}}{{secondaryHandItem.name}}{{/if}}
+                {{#if secondaryHandItem}}
+                  &nbsp <a class="item-control large-icon" data-action="dropHand" data-tooltip="{{localize 'PEN.wield.dropHint'}}"><i class="fas fa-arrow-down-from-line"></i></a>
+                {{/if}}
+              {{/unless}}
+            </td>
+            <td>{{system.shield}}</td>
+            <td></td>
+          </tr>
+        </tbody>
+    </table>
+
     <h2>{{localize 'PEN.armour'}}</h2>
     <table>
         <tbody>
@@ -28,23 +62,31 @@
         <tbody>
           <tr>
               <th>{{localize 'PEN.weapon'}}</th>
+              <th>{{localize 'PEN.quantityShort'}}</th>
               <th>{{localize 'PEN.available'}}</th>
               <th>{{localize 'PEN.footvMount'}}</th>
               <th>{{localize 'PEN.skill'}}</th>
               <th>{{localize 'PEN.value'}}</th>
               <th>{{localize 'PEN.parry'}}</th>
               <th>{{localize 'PEN.damage'}}</th>
+              <th>{{localize 'PEN.wield.label'}}</th>
           </tr>
           {{#each weapons as |weapon key|}}
           {{#if weapon.system.melee}}
-          <tr>
+          <tr data-itemid="{{weapon._id}}">
             <td>{{weapon.name}}</td>
+            <td>{{weapon.system.quantity}}</td>
             <td>{{localize 'PEN.period.all'}}</td>
             <td>{{weapon.mountedLabel}}</td>
             <td>{{weapon.system.skillName}}</td>
             <td>{{weapon.system.total}}</td>
             <td>{{weapon.system.parry}}</td>
             <td>{{weapon.system.damage}}</td>
+            <td>
+              <select class="wield-select" data-tooltip="{{#if (gt weapon.system.quantity 1)}}{{localize 'PEN.wield.drawHint'}}{{else}}{{weapon.wieldLabel}}{{/if}}">
+                {{selectOptions weapon.wieldType selected=weapon.wieldState}}
+              </select>
+            </td>
           </tr>
           {{/if}}
           {{/each}}
@@ -54,6 +96,7 @@
         <tbody>
           <tr>
               <th>{{localize 'PEN.weapon'}}</th>
+              <th>{{localize 'PEN.quantityShort'}}</th>
               <th>{{localize 'PEN.available'}}</th>
               <th>{{localize 'PEN.footvMount'}}</th>
               <th>{{localize 'PEN.skill'}}</th>
@@ -65,6 +108,7 @@
           {{#unless weapon.system.melee}}
           <tr>
             <td>{{weapon.name}}</td>
+            <td>{{weapon.system.quantity}}</td>
             <td>{{localize 'PEN.period.all'}}</td>
             <td>{{weapon.system.mounted}}</td>
             <td>{{weapon.system.skillName}}</td>

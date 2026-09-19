@@ -501,6 +501,7 @@
     },
     "heir": "Héritier",
     "heirStatus": "Le personnage est-il l'héritier de la famille ?",
+    "held": "En main",
     "heraldry": "Héraldique",
     "heroicEvent": "Évènement héroïque",
     "history": "Historique",
@@ -1126,6 +1127,17 @@
       "zigzagFumble": "Aucun modificateur à la Compétence de l’adversaire ; le personnage trébuche et perd toute sa Vitesse de Mouvement ce tour."
     },
     "walk": "Marche",
+    "wield": {
+      "label": "Maniement",
+      "notWielded": "Non maniée",
+      "carried": "Portée",
+      "dropped": "Lâchée",
+      "dropHint": "Lâcher ce qui est en main",
+      "drawHint": "Manier en retire une de la pile",
+      "primaryHand": "Main principale",
+      "twoHanded": "Deux mains"
+    },
+    "secondaryHand": "Main secondaire",
     "warn": {
       "currentWeaponCannotCharge": "Vous ne pouvez pas utiliser cette arme lors d’une charge montée.",
       "mountedOnlyAction": "Vous devez être à cheval pour faire cette action.",
@@ -1134,7 +1146,11 @@
       "unmountedOnlyAction": "Vous devez être à pied pour faire cette action.",
       "unmountedOnlyWeapon": "Vous ne pouvez pas utiliser cette arme à cheval.",
       "mustBeOnFoot": "Vous devez être debout et à pied pour faire cette action.",
-      "needSpear": "Vous devez avoir une lance comme arme actuelle pour faire cette action."
+      "needSpear": "Vous devez avoir une lance comme arme actuelle pour faire cette action.",
+      "twoHandedOccupiesBoth": "Une arme à deux mains occupe les deux mains ; déséquipez-la d’abord.",
+      "shieldWithCouchedLance": "Un bouclier ne peut accompagner une lance en arrêt que lors d’une charge ; il reste équipé, mais la lance occupe toujours les deux mains.",
+      "handOccupied": "Votre {hand} est déjà occupée.",
+      "displacedFromHand": "{item} est lâchée."
     },
     "warTrained": "Entraîné au combat",
     "weak": "Faible",
